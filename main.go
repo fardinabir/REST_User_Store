@@ -1,18 +1,39 @@
 package main
 
 import (
-	"encoding/json"
+	"database/sql"
 	"fmt"
-	"io/ioutil"
-	"math/rand"
 	"net/http"
-	"strconv"
 
+	_ "github.com/go-sql-driver/mysql"
+
+	"encoding/json"
+
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/gorilla/mux"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 )
 
-// User ...
+var db *sql.DB
+var alreadyInitialized bool
+var errorInDB bool
+
+// DB connection params
+const (
+	username = "root"
+	password = "mypass98"
+	hostname = "127.0.0.1:3306"
+	dbname   = "users_db"
+)
+
+var DB *gorm.DB
+var err error
+
+const DSN = "root:mypass98@tcp(127.0.0.1:3306)/users_db?charset=utf8mb4&parseTime=True&loc=Loca"
+
 type User struct {
+	gorm.Model
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`
 	Password  string `json:"password"`
@@ -20,90 +41,83 @@ type User struct {
 	Id        int    `json:"id"`
 }
 
-type NewReq struct {
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Password  string `json:"password"`
-	Phone     string `json:"phone"`
+func intialMigration() {
+	DB, err = gorm.Open(mysql.Open(DSN), &gorm.Config{})
+	if err != nil {
+		fmt.Println(err.Error())
+		panic("cannot connect DB")
+	}
+	DB.AutoMigrate(&User{})
 }
 
-// Users slice
-var Users []User
+func returnAllUsers(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Endpoint Hit: returnAllArticles")
+	w.Header().Set("Content-Type", "application/json")
+	var users []User
+	DB.Find(&users)
+	json.NewEncoder(w).Encode(users)
+
+}
+
+func createNewUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Endpoint Hit: createNewUsers")
+	w.Header().Set("Content-Type", "application/json")
+	var user User
+	_ = json.NewDecoder(r.Body).Decode(&user)
+	fmt.Println(user)
+	json.NewEncoder(w).Encode(user)
+}
+
+func updateUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Endpoint Hit: updateUser")
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	var user User
+	DB.First(&user, params["id"])
+	json.NewDecoder(r.Body).Decode(&user)
+	DB.Save(&user)
+	fmt.Println(user)
+	json.NewEncoder(w).Encode(user)
+}
+
+func getUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Endpoint Hit: getUser")
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	var user User
+	DB.First(&user, params["id"])
+	json.NewEncoder(w).Encode(user)
+}
+
+func deleteUser(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Endpoint Hit: deleteUser")
+	w.Header().Set("Content-Type", "application/json")
+	params := mux.Vars(r)
+	var user User
+	DB.Delete(&user, params["id"])
+	json.NewEncoder(w).Encode(user)
+}
 
 func handleRequests() {
 	myRouter := mux.NewRouter()
 
-	myRouter.HandleFunc("/users", createNewUser2).Methods("POST")
-	myRouter.HandleFunc("/", homePage)
-	myRouter.HandleFunc("/users", returnAllUsers).Methods("GET")
+	myRouter.HandleFunc("/users", createNewUser).Methods("POST")
+	myRouter.HandleFunc("/users", updateUser).Methods("PUT")
 
-	myRouter.HandleFunc("/usersf/{id}", deleteUser).Methods("DELETE")
+	myRouter.HandleFunc("/users", returnAllUsers).Methods("GET")
+	myRouter.HandleFunc("/users/{id}", getUser).Methods("GET")
+	myRouter.HandleFunc("/users/{id}", deleteUser).Methods("DELETE")
 	//myRouter.HandleFunc("/article/{id}", returnSingleArticle)
 
 	http.ListenAndServe(":8000", myRouter)
 }
 
-func homePage(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Welcome to the HomePage!")
-	fmt.Println("Endpoint Hit: homePage")
-}
-
-func returnAllUsers(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Endpoint Hit: returnAllArticles")
-	json.NewEncoder(w).Encode(Users)
-}
-
-func createNewUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Endpoint Hit: createNewUsers")
-	reqBody, _ := ioutil.ReadAll(r.Body)
-	fmt.Println(reqBody)
-	var newUserReq NewReq
-	json.Unmarshal(reqBody, &newUserReq)
-	Users = append(Users, assignIdNewUser(newUserReq))
-
-	//	fmt.Println(Users)
-	json.NewEncoder(w).Encode(Users[len(Users)-1])
-}
-
-func createNewUser2(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	var usr User
-	_ = json.NewDecoder(r.Body).Decode(&usr)
-	fmt.Println(usr)
-	usr.Id = rand.Intn(1000000)
-	Users = append(Users, usr)
-	json.NewEncoder(w).Encode(usr)
-}
-
-func assignIdNewUser(nr NewReq) User {
-	var usr User
-	usr.FirstName, usr.LastName, usr.Password, usr.Phone = nr.FirstName, nr.LastName, nr.Password, nr.Password
-	usr.Id = len(Users)
-	return usr
-}
-
-func deleteUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Endpoint Hit: deleteArticle")
-	vars := mux.Vars(r)
-	id, _ := strconv.Atoi(vars["id"])
-
-	for index, user := range Users {
-		if user.Id == id {
-			Users = append(Users[:index], Users[index+1:]...)
-		}
-	}
+func dsn(dbName string) string {
+	return fmt.Sprintf("%s:%s@tcp(%s)/%s", username, password, hostname, dbName)
 
 }
 
 func main() {
-	Users = []User{
-		{
-			FirstName: "fardin",
-			LastName:  "abir",
-			Password:  "1234",
-			Phone:     "131424243",
-		},
-	}
-
+	intialMigration()
 	handleRequests()
 }
