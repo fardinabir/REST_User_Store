@@ -30,7 +30,7 @@ const (
 var DB *gorm.DB
 var err error
 
-const DSN = "root:mypass98@tcp(127.0.0.1:3306)/users_db?charset=utf8mb4&parseTime=True&loc=Loca"
+const DSN = "root:mypass98@tcp(127.0.0.1:3306)/users_db?parseTime=true"
 
 type User struct {
 	gorm.Model
@@ -38,7 +38,6 @@ type User struct {
 	LastName  string `json:"lastName"`
 	Password  string `json:"password"`
 	Phone     string `json:"phone"`
-	Id        int    `json:"id"`
 }
 
 func intialMigration() {
@@ -53,17 +52,18 @@ func intialMigration() {
 func returnAllUsers(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Endpoint Hit: returnAllArticles")
 	w.Header().Set("Content-Type", "application/json")
-	var users []User
-	DB.Find(&users)
-	json.NewEncoder(w).Encode(users)
+	var userss []User
+	DB.Find(&userss)
+	json.NewEncoder(w).Encode(userss)
 
 }
 
 func createNewUser(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Endpoint Hit: createNewUsers")
+	fmt.Println("Endpoint Hit: createNewUser")
 	w.Header().Set("Content-Type", "application/json")
 	var user User
-	_ = json.NewDecoder(r.Body).Decode(&user)
+	json.NewDecoder(r.Body).Decode(&user)
+	DB.Create(&user)
 	fmt.Println(user)
 	json.NewEncoder(w).Encode(user)
 }
