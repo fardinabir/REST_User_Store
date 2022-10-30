@@ -33,37 +33,6 @@ var err error
 
 const DSN = "root:mypass98@tcp(127.0.0.1:3306)/users_db?parseTime=true"
 
-type User struct {
-	gorm.Model
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-	Password  string `json:"password"`
-	Phone     string `json:"phone"`
-}
-
-type UserTag struct {
-	gorm.Model
-	UserId     uint   `json:userId`
-	Name       string `json:"fullName"`
-	Tag        string `json:"tag"`
-	ExpiryTime string `json:"expiryTime"`
-}
-
-type GetResponse struct {
-	ID    uint   `json:"id"`
-	Name  string `json:"fullName"`
-	Phone string `json:"phone"`
-}
-
-type PostResponse struct {
-	ID uint `json:"id"`
-}
-
-type TagPostReq struct {
-	Tags   []string `json:"tags"`
-	Expiry uint     `json:"expiry"`
-}
-
 func intialMigration() {
 	DB, err = gorm.Open(mysql.Open(DSN), &gorm.Config{})
 	if err != nil {
@@ -120,24 +89,22 @@ func updateUserTag(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(result)
 	if result.Error != nil {
 		fmt.Println(result.Error)
-		w.WriteHeader(404)
+		w.WriteHeader(400)
 		return
 		//panic("Cannot Find User")
 	}
 
 	// Createing multiple rows for each user with single tag
-	for ind, tag := range req.Tags {
-		var uTag []UserTag
-		uTag.UserId, uTag.Name = user.ID, user.FirstName+" "+user.LastName
-		uTag.Tag = tag
-
-		// Setting an Expiry time by adding the duration with reqest submit time, later it will be compared
-		uTag.ExpiryTime = time.Now().Add(time.Duration(req.Expiry) * time.Millisecond)
-		fmt.Println(time.Now())
-		fmt.Println(time.Now().Add(time.Duration(req.Expiry) * time.Millisecond))
+	for _, tag := range req.Tags {
+		var uTag UserTag
+		uTag.User, uTag.Tag = user, tag
 		DB.Create(&uTag)
-		uTag.ID = user.ID
-		DB.Save(&uTag)
+
+		var uTot UserTot
+		uTot.User, uTot.UserTag, uTot.Name = user, uTag, user.FirstName+" "+user.LastName
+		timeNowInMilli := (time.Now().UnixNano() / int64(time.Millisecond))
+		uTot.ExpiryTime = timeNowInMilli + (req.Expiry * int64(time.Millisecond)) // Expiry Time in Milliseconds
+		DB.Create(&uTot)
 	}
 
 }
