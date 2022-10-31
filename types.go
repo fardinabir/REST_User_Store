@@ -8,22 +8,13 @@ type User struct {
 	LastName  string `json:"lastName"`
 	Password  string `json:"password"`
 	Phone     string `json:"phone"`
+	UserTags  []UserTag
 }
 
 type UserTag struct {
 	gorm.Model
-	UserId uint
-	User   User
-	Tag    string `json:"tag"`
-}
-
-type UserTot struct {
-	gorm.Model
-	UserId     uint
-	User       User
-	UserTagID  uint
-	UserTag    UserTag
-	Name       string `json:"fullName"`
+	UserID     uint
+	Tag        string `json:"tag"`
 	ExpiryTime int64  `json:"expiryTime"`
 }
 
@@ -40,4 +31,14 @@ type PostResponse struct {
 type TagPostReq struct {
 	Tags   []string `json:"tags"`
 	Expiry int64    `json:"expiry"`
+}
+
+type UserTagListResponse struct {
+	Users []UserTagResponse `json:users`
+}
+
+type UserTagResponse struct {
+	ID   uint     `json:"id"`
+	Name string   `json:"name"`
+	Tags []string `json:"tags"`
 }
