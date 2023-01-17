@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -10,17 +9,19 @@ import (
 )
 
 // DB connection params
+// mysql server should be installed first and be configured with following credentials
+// a db named 'users_db' must be present
 const (
 	username = "root"
-	password = "mypass98"
+	password = "password"
 	hostname = "127.0.0.1:3306"
 	dbname   = "users_db"
 	extra    = "charset=utf8mb4&parseTime=true"
 )
 
-var db *sql.DB
-var alreadyInitialized bool
-var errorInDB bool
+//var db *sql.DB
+//var alreadyInitialized bool
+//var errorInDB bool
 
 var DB *gorm.DB
 var err error
@@ -33,7 +34,10 @@ func intialMigration() {
 		fmt.Println(err.Error())
 		panic("cannot connect DB")
 	}
-	DB.AutoMigrate(&User{}, &UserTag{})
+	err := DB.AutoMigrate(&User{}, &UserTag{})
+	if err != nil {
+		panic("cannot migrate from DB")
+	}
 }
 
 func dsn() {
